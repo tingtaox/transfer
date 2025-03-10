@@ -1,5 +1,7 @@
 package com.tingtaox.transfer.services.impls;
 
+import static com.tingtaox.transfer.models.Constants.PENDING;
+import static com.tingtaox.transfer.models.Constants.SUCCESS;
 import static com.tingtaox.transfer.models.Constants.TRANSACTION_FAILURE_QUEUE;
 import static com.tingtaox.transfer.models.Constants.EXCHANGE;
 
@@ -17,6 +19,7 @@ import com.tingtaox.transfer.databases.repositories.BalanceRepository;
 import com.tingtaox.transfer.databases.repositories.FailureRepository;
 import com.tingtaox.transfer.models.BalanceOperation;
 import com.tingtaox.transfer.models.TransferRequest;
+import com.tingtaox.transfer.models.TransferResponse;
 import com.tingtaox.transfer.services.BalanceService;
 import com.tingtaox.transfer.services.TransferService;
 
@@ -93,7 +96,7 @@ public class TransferServiceImpl implements TransferService {
      * @return          transaction id
      */
     @Override
-    public String transfer(TransferRequest request) {
+    public TransferResponse transfer(TransferRequest request) {
         BigDecimal transferAmount = BigDecimal.valueOf(request.getAmount());
         String fromAccount = request.getFromAccount();
         String toAccount = request.getToAccount();
@@ -127,7 +130,7 @@ public class TransferServiceImpl implements TransferService {
             logger.error("Failed to update from account {}", fromAccount, e);
             FailureEntity failure = saveFailureRecord(transactionId, fromAccount, toAccount, transferAmount, false, false);
             rabbitTemplate.convertAndSend(EXCHANGE, TRANSACTION_FAILURE_QUEUE, failure);  // send to MQ for asynchronous retry
-            return transactionId;
+            return new TransferResponse(transactionId, PENDING);
         }
 
         try {
@@ -140,11 +143,11 @@ public class TransferServiceImpl implements TransferService {
             logger.error("Failed to update to account {}", toAccount, e);
             FailureEntity failure = saveFailureRecord(transactionId, fromAccount, toAccount, transferAmount, true, false);
             rabbitTemplate.convertAndSend(EXCHANGE, TRANSACTION_FAILURE_QUEUE, failure);  // send to MQ for asynchronous retry
-            return transactionId;
+            return new TransferResponse(transactionId, PENDING);
         }
 
         logger.info("Finished transaction {} from {} to {}", transactionId, fromAccount, toAccount);
-        return transactionId;
+        return new TransferResponse(transactionId, SUCCESS);
     }
 
     /**

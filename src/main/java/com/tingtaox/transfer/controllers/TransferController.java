@@ -1,6 +1,7 @@
 package com.tingtaox.transfer.controllers;
 
 import com.tingtaox.transfer.models.TransferRequest;
+import com.tingtaox.transfer.models.TransferResponse;
 import com.tingtaox.transfer.services.TransferService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +31,7 @@ public class TransferController {
 	}
 
 	@PostMapping("/transfer")
-	public String transfer(@RequestBody TransferRequest request) {
+	public TransferResponse transfer(@RequestBody TransferRequest request) {
 		logger.info("Transfer money from {} to {} with amount {}",
 				request.getFromAccount(), request.getToAccount(), request.getAmount());
 		return transferService.transfer(request);
