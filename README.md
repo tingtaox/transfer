@@ -1,11 +1,17 @@
-#### API design
+# Design Document
+
+This document elaborates the design of the transfer system and the Java microservice.
+
+### API design
 In the fund transfer service, we have 2 restful APIs.
-##### Get account balance
+#### Get account balance
 GET /api/balance/{account}
+
 response: account balance
 
-##### Make a fund transfer from one account to another
+#### Make a fund transfer from one account to another
 POST /api/transfer
+
 Post body:
 
 ```
@@ -25,7 +31,7 @@ Success reponse
 ```
 
 ## Architecture design
-The fund transfer system consists of 4 parts
+The fund transfer system consists of 4 parts:
 1. Java spring boot service
 2. Message queue (RabbitMQ)
 3. Redis cache
@@ -34,7 +40,7 @@ The fund transfer system consists of 4 parts
 ### MySQL database design
 we will create 3 tables in MySQL database
 #### 1) Audit table
-Audit table saves every transfer request, including transaction id, from account, to account, transfer amount and timestamp. The SQL to create the table is shown below. This table is for the book keeping and the ultimate source of account balance.
+Audit table saves every transfer request, including transaction id, from account, to account, transfer amount and timestamp. This table is for book keeping and the golden source of account balance. The SQL to create the table is shown below.
 ```
 CREATE TABLE Audit (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -100,6 +106,10 @@ Transfer is considered success as long as a record is saved in Audit. Later on w
 
 ##### 2. cache deletion retry
 We delete cache record after db balance changes. Cache must be consistent with the db. But if cache deletion fails, push a message to RabbitMQ and a number of consumers will fetch the messages and retry record deletion. By the way, if the messages are missing somehow, we rely on expiration time on reids for eventual consistency.
+
+### Reconciliation Process
+There is a reconciliation process in the Java service which runs on periodically to scan unfinished failing balance updates. It scans the Failure table and fetches unfinished transactions that are older than 12 hours.
+We need reconciliation process in case retry MQ lost messages and some transactions are left unfinished forever. The additional daemon process catches the dead transactions to avoid manual intervention.
 
 ### API Time Sequence
 ##### 1. Get account balance
